@@ -1,34 +1,51 @@
-# Revisão: GitHub Actions + Docker
+"""Onde as tarefas são guardadas: em memória (padrão) ou no PostgreSQL."""
 
-API de tarefas em Flask. Sem a variável `DATABASE_URL`, guarda as tarefas em
-memória; com ela, usa um PostgreSQL.
+import os
 
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/saude` | `{"status": "ok"}` |
-| GET | `/tarefas` | lista as tarefas |
-| POST | `/tarefas` | cria uma tarefa — corpo JSON `{"titulo": "..."}` |
 
-Ao longo da revisão você vai criar:
+class RepositorioMemoria:
+    def __init__(self):
+        self._tarefas = []
 
-- `.github/workflows/ola.yml` e `.github/workflows/ci.yml`
-- `Dockerfile` e `.dockerignore`
-- `compose.yaml` e `compose.prod.yaml`
+    def listar(self):
+        return list(self._tarefas)
 
-Testes (no CI, ou localmente se tiver Python): `pip install -r requirements-dev.txt && pytest -v`
+    def criar(self, titulo):
+        tarefa = {"id": len(self._tarefas) + 1, "titulo": titulo, "feita": False}
+        self._tarefas.append(tarefa)
+        return tarefa
 
-Exemplos com curl:
 
-```bash
-curl http://localhost:5000/saude
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"titulo": "Revisar Docker"}' http://localhost:5000/tarefas
-curl http://localhost:5000/tarefas
-```
+class RepositorioPostgres:
+    def __init__(self, dsn):
+        self._dsn = dsn
+        with self._conectar() as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS tarefas ("
+                " id SERIAL PRIMARY KEY, titulo TEXT NOT NULL, feita BOOLEAN DEFAULT false)"
+            )
 
-PowerShell:
+    def _conectar(self):
+        import psycopg
 
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:5000/tarefas `
-  -ContentType "application/json" -Body '{"titulo": "Revisar Docker"}'
-```
+        return psycopg.connect(self._dsn, autocommit=True)
+
+    def listar(self):
+        with self._conectar() as conn:
+            linhas = conn.execute(
+                "SELECT id, titulo, feita FROM tarefas ORDER BY id"
+            ).fetchall()
+        return [{"id": i, "titulo": t, "feita": f} for i, t, f in linhas]
+
+    def criar(self, titulo):
+        with self._conectar() as conn:
+            (novo_id,) = conn.execute(
+                "INSERT INTO tarefas (titulo) VALUES (%s) RETURNING id", (titulo,)
+            ).fetchone()
+        return {"id": novo_id, "titulo": titulo, "feita": False}
+
+
+def criar_repositorio():
+    """Usa o PostgreSQL se DATABASE_URL estiver definida; senão, memória."""
+    dsn = os.environ.get("DATABASE_URL")
+    return RepositorioPostgres(dsn) if dsn else RepositorioMemoria()
