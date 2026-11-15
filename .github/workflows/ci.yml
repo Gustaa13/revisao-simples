@@ -45,7 +45,7 @@ jobs:
         run: docker build -t revisao-simples:latest .
 
       - name: Subir o container
-        run: docker run -d -p 5000:5000 --name revisao-simples revisao-simples:latest
+        run: docker run -d -p 5000:5000 --name revisao-simples -v historico:/dados revisao-simples:latest
 
       - name: Esperar a API
         run: |
@@ -60,6 +60,26 @@ jobs:
           curl -X POST http://localhost:5000/tarefas \
             -H "Content-Type: application/json" \
             -d '{"titulo": "Teste", "descricao": "Teste"}'
+
+      - name: Mais duas tarefas
+        run: |
+          curl -X POST http://localhost:5000/tarefas \
+            -H "Content-Type: application/json" \
+            -d '{"titulo": "Teste 2", "descricao": "Teste 2"}'
+          curl -X POST http://localhost:5000/tarefas \
+            -H "Content-Type: application/json" \
+            -d '{"titulo": "Teste 3", "descricao": "Teste 3"}'
+
+      - name: Exportar o histórico do volume com container alpine
+        run: |
+            docker run --rm -v historico:/dados alpine \
+            cat /dados/historico.log > historico.log
+
+      - name: Publicar como artefato
+        uses: actions/upload-artifact@v7
+        with:
+          name: historico
+          path: historico.log
 
       - name: Logs do container
         if: failure()
