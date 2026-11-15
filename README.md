@@ -9,13 +9,25 @@ memória; com ela, usa um PostgreSQL.
 | GET | `/tarefas` | lista as tarefas |
 | POST | `/tarefas` | cria uma tarefa — corpo JSON `{"titulo": "..."}` |
 
-Ao longo da revisão você vai criar:
+## Executar com PostgreSQL
 
-- `.github/workflows/ola.yml` e `.github/workflows/ci.yml`
-- `Dockerfile` e `.dockerignore`
-- `compose.yaml` e `compose.prod.yaml`
+O Compose inicia a API e o PostgreSQL. As tarefas ficam no volume Docker `postgres_data` e continuam disponíveis depois que os containers forem recriados.
 
-Testes (no CI, ou localmente se tiver Python): `pip install -r requirements-dev.txt && pytest -v`
+1. Copie `.env.example` para `.env` e ajuste `POSTGRES_PASSWORD` e a senha correspondente em `DATABASE_URL`.
+2. Inicie os serviços:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. Confira a API em `http://localhost:5000/saude`.
+4. Para parar sem apagar as tarefas, rode `docker compose down`. Para apagar também o banco, rode `docker compose down -v`.
+
+No PowerShell, a cópia pode ser feita com `Copy-Item .env.example .env`.
+
+O serviço da API recebe `DATABASE_URL` apontando para o hostname `db` da rede Compose. Sem essa variável, `criar_repositorio()` ainda usa memória, por exemplo nos testes unitários.
+
+Testes: `pip install -r requirements-dev.txt && pytest -v`
 
 Exemplos com curl:
 
