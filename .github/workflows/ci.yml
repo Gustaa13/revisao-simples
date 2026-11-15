@@ -49,7 +49,7 @@ jobs:
 
       - name: Esperar a API
         run: |
-          for i in ${seq 1 15}, do
+          for i in $(seq 1 15); do
             curl -fs http://localhost:5000/saude && exit 0
             sleep 2
           done
