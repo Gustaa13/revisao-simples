@@ -33,3 +33,34 @@ jobs:
 
       - name: Run pytest
         run: pytest -v
+
+  imagem:
+    needs: testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Construir imagem image
+        run: docker build -t revisao-simples:latest .
+
+      - name: Subir o container
+        run: docker run -d -p 5000:5000 --name revisao-simples revisao-simples:latest
+
+      - name: Esperar a API
+        run: |
+          for i in ${seq 1 15}, do
+            curl -fs http://localhost:5000/saude && exit 0
+            sleep 2
+          done
+          exit 1
+      
+      - name: testar criar uma tarefa
+        run: |
+          curl -X POST http://localhost:5000/tarefas \
+            -H "Content-Type: application/json" \
+            -d '{"titulo": "Teste", "descricao": "Teste"}'
+
+      - name: Logs do container
+        if: failure()
+        run: docker logs revisao-simples
